@@ -216,6 +216,23 @@ export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criter
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+
+                <div className="mt-8 p-6 bg-slate-50 shadow-sm rounded-2xl border border-slate-200 space-y-4">
+                  <h3 className="font-bold font-medium tracking-tight flex items-center gap-2 text-slate-800">
+                    Analysis & Conclusion
+                  </h3>
+                  <div className="text-sm space-y-3 font-sans text-slate-600 leading-relaxed">
+                    <p>
+                      <strong>Weight Variation Analysis:</strong> This chart shows how the final scores of alternatives change when the weight of the selected criterion is incrementally increased or decreased (from -90% to +90%).
+                    </p>
+                    <p>
+                      <strong>Spearman's Correlation:</strong> A correlation close to 1.0 indicates that the ranking remains stable despite weight changes. A sharp drop signifies that the decision is highly sensitive to the weight of this specific criterion.
+                    </p>
+                    <p>
+                      <strong>Conclusion:</strong> If the lines cross frequently or the correlation drops significantly, you should carefully review the weight assigned to this criterion, as it heavily dictates the final outcome.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -257,6 +274,23 @@ export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criter
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+
+                <div className="mt-8 p-6 bg-slate-50 shadow-sm rounded-2xl border border-slate-200 space-y-4">
+                  <h3 className="font-bold font-medium tracking-tight flex items-center gap-2 text-slate-800">
+                    Analysis & Conclusion
+                  </h3>
+                  <div className="text-sm space-y-3 font-sans text-slate-600 leading-relaxed">
+                    <p>
+                      <strong>80/20 Distribution Analysis:</strong> This test assigns 80% of the total weight to a single criterion (shown on the X-axis) and distributes the remaining 20% equally among all others.
+                    </p>
+                    <p>
+                      <strong>Robustness Check:</strong> It reveals which alternative dominates when a specific criterion is considered overwhelmingly important. 
+                    </p>
+                    <p>
+                      <strong>Conclusion:</strong> If an alternative consistently ranks highly regardless of which criterion is given 80% weight, it is an exceptionally robust choice. Conversely, if the top alternative changes drastically, the decision is highly dependent on the criteria weighting scheme.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -297,6 +331,23 @@ export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criter
                       <Line type="monotone" dataKey="spearman" stroke="#4f46e5" strokeWidth={3} name="Spearman Correlation" />
                     </LineChart>
                   </ResponsiveContainer>
+                </div>
+
+                <div className="mt-8 p-6 bg-slate-50 shadow-sm rounded-2xl border border-slate-200 space-y-4">
+                  <h3 className="font-bold font-medium tracking-tight flex items-center gap-2 text-slate-800">
+                    Analysis & Conclusion
+                  </h3>
+                  <div className="text-sm space-y-3 font-sans text-slate-600 leading-relaxed">
+                    <p>
+                      <strong>Lambda (λ) Variation:</strong> In the WASPAS method, λ determines the balance between the Weighted Sum Model (WSM, λ=1) and the Weighted Product Model (WPM, λ=0).
+                    </p>
+                    <p>
+                      <strong>Score Impact:</strong> The chart illustrates how shifting this balance affects the final scores and rankings of the alternatives.
+                    </p>
+                    <p>
+                      <strong>Conclusion:</strong> A stable ranking across all λ values (0 to 1) indicates a robust decision. If the top alternative changes based on λ, you must carefully justify your choice of λ (typically 0.5) based on whether you prefer additive or multiplicative aggregation.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

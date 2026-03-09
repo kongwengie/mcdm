@@ -560,27 +560,31 @@ export default function App() {
           <div className="flex bg-white shadow-sm rounded-2xl border border-slate-200 p-1">
             <button 
               onClick={() => setViewMode('results')}
-              className={`px-4 py-1 text-xs text-slate-600 tracking-wide transition-colors ${viewMode === 'results' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-100'}`}
+              className={`px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center ${viewMode === 'results' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
-              Results
+              <span className="font-semibold">Results</span>
+              <span className={`text-[10px] mt-0.5 ${viewMode === 'results' ? 'text-indigo-200' : 'text-slate-400'}`}>(Final Rankings)</span>
             </button>
             <button 
               onClick={() => setViewMode('steps')}
-              className={`px-4 py-1 text-xs text-slate-600 tracking-wide transition-colors ${viewMode === 'steps' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-100'}`}
+              className={`px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center ${viewMode === 'steps' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
-              Calculation Steps
+              <span className="font-semibold">Calculation Steps</span>
+              <span className={`text-[10px] mt-0.5 ${viewMode === 'steps' ? 'text-indigo-200' : 'text-slate-400'}`}>(Detailed Breakdown)</span>
             </button>
             <button 
               onClick={() => setViewMode('comparison')}
-              className={`px-4 py-1 text-xs text-slate-600 tracking-wide transition-colors ${viewMode === 'comparison' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-100'}`}
+              className={`px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center ${viewMode === 'comparison' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
-              Method Comparison
+              <span className="font-semibold">Method Comparison</span>
+              <span className={`text-[10px] mt-0.5 ${viewMode === 'comparison' ? 'text-indigo-200' : 'text-slate-400'}`}>(Compare Methods)</span>
             </button>
             <button 
               onClick={() => setViewMode('sensitivity')}
-              className={`px-4 py-1 text-xs text-slate-600 tracking-wide transition-colors ${viewMode === 'sensitivity' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-100'}`}
+              className={`px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center ${viewMode === 'sensitivity' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
-              Sensitivity Analysis
+              <span className="font-semibold">Sensitivity Analysis</span>
+              <span className={`text-[10px] mt-0.5 ${viewMode === 'sensitivity' ? 'text-indigo-200' : 'text-slate-400'}`}>(Test Robustness)</span>
             </button>
           </div>
         )}
@@ -1276,6 +1280,22 @@ export default function App() {
                       </ResponsiveContainer>
                     </div>
                   </div>
+
+                  {/* Description and Conclusion */}
+                  <div className="mt-12 bg-slate-50 border border-slate-200 rounded-2xl p-8">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4">Analysis & Conclusion</h3>
+                    <div className="space-y-4 text-sm text-slate-600 leading-relaxed">
+                      <p>
+                        <strong>Method Applied:</strong> The {selectedMethod?.name} method was used to evaluate {alternatives.length} alternatives based on {effectiveCriteria.length} criteria.
+                      </p>
+                      <p>
+                        <strong>Top Alternative:</strong> Based on the final scores, <strong>{output.results[0]?.name}</strong> is the most preferred alternative with a score of {output.results[0]?.score.toFixed(4)}.
+                      </p>
+                      <p>
+                        <strong>Conclusion:</strong> The chart above illustrates the score distribution among all alternatives. A higher score indicates a stronger preference according to the selected MCDM method's logic. Decision-makers should consider these rankings alongside qualitative factors and potentially perform sensitivity analysis to ensure the robustness of this recommendation.
+                      </p>
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1432,14 +1452,33 @@ export default function App() {
                 </table>
               </div>
 
-              <div className="p-6 bg-white shadow-sm rounded-2xl border border-slate-200 space-y-4">
-                <h3 className="font-bold font-medium tracking-tight flex items-center gap-2">
-                  <Info className="w-4 h-4" /> Why are some rankings identical?
-                </h3>
-                <div className="text-sm space-y-2 font-sans  opacity-80">
-                  <p>1. <strong>Data Sensitivity:</strong> If your alternatives have very distinct values (e.g., one is clearly better in all criteria), most methods will naturally agree on the ranking.</p>
-                  <p>2. <strong>Method Logic:</strong> Some methods (like SAW and SMART) use similar linear normalization techniques, leading to identical rankings for simple datasets.</p>
-                  <p>3. <strong>Weight Influence:</strong> If one criterion has a very high weight (e.g., 0.9), it will dominate the decision process across almost all methods.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-6 bg-white shadow-sm rounded-2xl border border-slate-200 space-y-4">
+                  <h3 className="font-bold font-medium tracking-tight flex items-center gap-2">
+                    <Info className="w-4 h-4" /> Why are some rankings identical?
+                  </h3>
+                  <div className="text-sm space-y-2 font-sans  opacity-80">
+                    <p>1. <strong>Data Sensitivity:</strong> If your alternatives have very distinct values (e.g., one is clearly better in all criteria), most methods will naturally agree on the ranking.</p>
+                    <p>2. <strong>Method Logic:</strong> Some methods (like SAW and SMART) use similar linear normalization techniques, leading to identical rankings for simple datasets.</p>
+                    <p>3. <strong>Weight Influence:</strong> If one criterion has a very high weight (e.g., 0.9), it will dominate the decision process across almost all methods.</p>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-slate-50 shadow-sm rounded-2xl border border-slate-200 space-y-4">
+                  <h3 className="font-bold font-medium tracking-tight flex items-center gap-2 text-slate-800">
+                    Analysis & Conclusion
+                  </h3>
+                  <div className="text-sm space-y-3 font-sans text-slate-600 leading-relaxed">
+                    <p>
+                      This comparison table provides a holistic view of how different MCDM algorithms evaluate your dataset. 
+                    </p>
+                    <p>
+                      <strong>Consensus Check:</strong> If multiple methods (especially from different categories like Scoring vs. Outranking) yield the same top alternative, you can have high confidence in that choice.
+                    </p>
+                    <p>
+                      <strong>Divergence:</strong> If rankings vary significantly between methods, it indicates that the decision is highly sensitive to the specific mathematical logic used (e.g., how distance to ideal solutions is measured vs. pairwise comparisons). In such cases, reviewing the specific characteristics of the preferred method is recommended.
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.div>
