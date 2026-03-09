@@ -1,0 +1,5 @@
+{
+  "name": "MCDM Master Calculator",
+  "description": "Comprehensive Multi-Criteria Decision Making (MCDM) tool supporting Crisp, Fuzzy, and Hybrid methods including AHP, TOPSIS, VIKOR, and more.",
+  "requestFramePermissions": []
+}

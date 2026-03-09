@@ -1,0 +1,57 @@
+import { MethodDefinition } from '../types/mcdm';
+
+export const MCDM_METHODS: MethodDefinition[] = [
+  // Normal (Crisp) MCDM Methods
+  { id: 'ahp', name: 'AHP', category: 'crisp', description: 'Analytic Hierarchy Process' },
+  { id: 'topsis', name: 'TOPSIS', category: 'crisp', description: 'Technique for Order Preference by Similarity to Ideal Solution' },
+  { id: 'vikor', name: 'VIKOR', category: 'crisp', description: 'Compromise Ranking Method' },
+  { id: 'saw', name: 'SAW', category: 'crisp', description: 'Simple Additive Weighting' },
+  { id: 'electre', name: 'ELECTRE', category: 'crisp', description: 'Elimination and Choice Expressing Reality' },
+  { id: 'promethee', name: 'PROMETHEE', category: 'crisp', description: 'Preference Ranking Organization Method for Enrichment Evaluation' },
+  { id: 'waspas', name: 'WASPAS', category: 'crisp', description: 'Weighted Aggregated Sum Product Assessment' },
+  { id: 'copras', name: 'COPRAS', category: 'crisp', description: 'Complex Proportional Assessment' },
+  { id: 'aras', name: 'ARAS', category: 'crisp', description: 'Additive Ratio Assessment' },
+  { id: 'multimoora', name: 'MULTIMOORA', category: 'crisp', description: 'Multi-Objective Optimization by Ratio Analysis Plus Full Multiplicative Form' },
+  { id: 'moora', name: 'MOORA', category: 'crisp', description: 'Multi-Objective Optimization by Ratio Analysis' },
+  { id: 'mew', name: 'MEW', category: 'crisp', description: 'Mean Euclidean Weighted' },
+  { id: 'smart', name: 'SMART', category: 'crisp', description: 'Simple Multi-Attribute Rating Technique' },
+  { id: 'uta', name: 'UTA', category: 'crisp', description: 'Utility Additive' },
+  { id: 'oreste', name: 'ORESTE', category: 'crisp', description: 'Organization, Rangement Et Synthèse De Données Relationnelles' },
+  { id: 'edas', name: 'EDAS', category: 'crisp', description: 'Evaluation based on Distance from Average Solution' },
+  { id: 'gra', name: 'GRA', category: 'crisp', description: 'Grey Relational Analysis' },
+
+  // Fuzzy MCDM Methods
+  { id: 'fuzzy-ahp', name: 'Fuzzy AHP', category: 'fuzzy', description: 'Fuzzy Analytic Hierarchy Process' },
+  { id: 'fuzzy-topsis', name: 'Fuzzy TOPSIS', category: 'fuzzy', description: 'Fuzzy TOPSIS' },
+  { id: 'fuzzy-vikor', name: 'Fuzzy VIKOR', category: 'fuzzy', description: 'Fuzzy VIKOR' },
+  { id: 'fuzzy-saw', name: 'Fuzzy SAW', category: 'fuzzy', description: 'Fuzzy SAW' },
+  { id: 'fuzzy-electre', name: 'Fuzzy ELECTRE', category: 'fuzzy', description: 'Fuzzy ELECTRE' },
+  { id: 'fuzzy-promethee', name: 'Fuzzy PROMETHEE', category: 'fuzzy', description: 'Fuzzy PROMETHEE' },
+  { id: 'fuzzy-copras', name: 'Fuzzy COPRAS', category: 'fuzzy', description: 'Fuzzy COPRAS' },
+  { id: 'fuzzy-aras', name: 'Fuzzy ARAS', category: 'fuzzy', description: 'Fuzzy ARAS' },
+  { id: 'fuzzy-waspas', name: 'Fuzzy WASPAS', category: 'fuzzy', description: 'Fuzzy WASPAS' },
+  { id: 'fuzzy-dematel', name: 'Fuzzy DEMATEL', category: 'fuzzy', description: 'Fuzzy Decision Making Trial and Evaluation Laboratory' },
+  { id: 'fuzzy-anp', name: 'Fuzzy ANP', category: 'fuzzy', description: 'Fuzzy Analytic Network Process' },
+  { id: 'if-topsis', name: 'Intuitionistic Fuzzy TOPSIS', category: 'fuzzy', description: 'Intuitionistic Fuzzy TOPSIS' },
+  { id: 'fuzzy-marcos', name: 'Fuzzy MARCOS', category: 'fuzzy', description: 'Fuzzy Measurement of Alternatives and Ranking according to COmpromise Solution' },
+  { id: 'fuzzy-moora', name: 'Fuzzy MOORA', category: 'fuzzy', description: 'Fuzzy MOORA' },
+  { id: 'fuzzy-multimoora', name: 'Fuzzy MULTIMOORA', category: 'fuzzy', description: 'Fuzzy MULTIMOORA' },
+
+  // Hybrid MCDM Methods
+  { id: 'ahp-topsis', name: 'AHP + TOPSIS', category: 'hybrid', description: 'AHP weighting combined with TOPSIS' },
+  { id: 'fuzzy-ahp-topsis', name: 'Fuzzy AHP + Fuzzy TOPSIS', category: 'hybrid', description: 'Fuzzy AHP weighting combined with Fuzzy TOPSIS' },
+  { id: 'anp-vikor', name: 'ANP + VIKOR', category: 'hybrid', description: 'ANP weighting combined with VIKOR' },
+  { id: 'dematel-anp', name: 'DEMATEL + ANP', category: 'hybrid', description: 'DEMATEL for influence combined with ANP' },
+  { id: 'entropy-topsis', name: 'Entropy + TOPSIS', category: 'hybrid', description: 'Entropy weighting combined with TOPSIS' },
+  { id: 'ahp-vikor', name: 'AHP + VIKOR', category: 'hybrid', description: 'AHP weighting combined with VIKOR' },
+  { id: 'fuzzy-ahp-vikor', name: 'Fuzzy AHP + Fuzzy VIKOR', category: 'hybrid', description: 'Fuzzy AHP weighting combined with Fuzzy VIKOR' },
+  { id: 'ahp-saw', name: 'AHP + SAW', category: 'hybrid', description: 'AHP weighting combined with SAW' },
+  { id: 'fuzzy-dematel-topsis', name: 'Fuzzy DEMATEL + TOPSIS', category: 'hybrid', description: 'Fuzzy DEMATEL for influence combined with TOPSIS' },
+  { id: 'ahp-electre', name: 'AHP + ELECTRE', category: 'hybrid', description: 'AHP weighting combined with ELECTRE' },
+  { id: 'fuzzy-anp-topsis', name: 'Fuzzy ANP + TOPSIS', category: 'hybrid', description: 'Fuzzy ANP weighting combined with TOPSIS' },
+  { id: 'entropy-vikor', name: 'Entropy + VIKOR', category: 'hybrid', description: 'Entropy weighting combined with VIKOR' },
+  { id: 'ahp-promethee', name: 'AHP + PROMETHEE', category: 'hybrid', description: 'AHP weighting combined with PROMETHEE' },
+  { id: 'fuzzy-ahp-promethee', name: 'Fuzzy AHP + PROMETHEE', category: 'hybrid', description: 'Fuzzy AHP weighting combined with PROMETHEE' },
+  { id: 'moora-topsis', name: 'Hybrid MOORA + TOPSIS', category: 'hybrid', description: 'Hybrid MOORA combined with TOPSIS' },
+  { id: 'custom-hybrid', name: 'Custom Hybrid', category: 'hybrid', description: 'Select your own weighting and ranking methods' }
+];
