@@ -26,7 +26,7 @@ export function calculateSAW(criteria: Criterion[], alternatives: Alternative[])
   steps.push({
     title: 'Normalization Matrix',
     description: 'Values are normalized based on Benefit (x/max) or Cost (min/x) criteria.',
-    formula: 'Benefit: r_ij = x_ij / max(x_j) | Cost: r_ij = min(x_j) / x_ij',
+    formula: '\\text{Benefit: } r_{ij} = \\frac{x_{ij}}{\\max_j(x_{ij})} \\quad \\text{Cost: } r_{ij} = \\frac{\\min_j(x_{ij})}{x_{ij}}',
     type: 'matrix',
     data: normalizedMatrix
   });
@@ -48,7 +48,7 @@ export function calculateSAW(criteria: Criterion[], alternatives: Alternative[])
   steps.push({
     title: 'Final Score Calculation',
     description: 'Calculate the total score for each alternative by summing the weighted normalized values.',
-    formula: 'S_i = w_1 * r_i1 + w_2 * r_i2 + ... + w_n * r_in',
+    formula: 'S_i = \\sum_{j=1}^{n} w_j r_{ij}',
     type: 'list',
     data: Object.fromEntries(results.map(r => [r.name, { score: r.score }]))
   });
@@ -76,7 +76,7 @@ export function calculateTOPSIS(criteria: Criterion[], alternatives: Alternative
   steps.push({
     title: 'Weighted Normalized Matrix',
     description: 'Vector normalization applied and multiplied by criteria weights.',
-    formula: 'v_ij = w_j * (x_ij / √Σx_ij²)',
+    formula: 'v_{ij} = w_j \\frac{x_{ij}}{\\sqrt{\\sum_{i=1}^{m} x_{ij}^2}}',
     type: 'matrix',
     data: normMatrix
   });
@@ -99,7 +99,7 @@ export function calculateTOPSIS(criteria: Criterion[], alternatives: Alternative
   steps.push({
     title: 'Ideal & Anti-Ideal Solutions',
     description: 'PIS (Positive Ideal Solution) and NIS (Negative Ideal Solution) identified.',
-    formula: 'V+ = {max(v_ij) if benefit, min(v_ij) if cost} | V- = {min(v_ij) if benefit, max(v_ij) if cost}',
+    formula: 'V^+ = \\{ \\max_i(v_{ij}) \\text{ if benefit, } \\min_i(v_{ij}) \\text{ if cost} \\} \\quad V^- = \\{ \\min_i(v_{ij}) \\text{ if benefit, } \\max_i(v_{ij}) \\text{ if cost} \\}',
     type: 'list',
     data: { ideal, antiIdeal }
   });
@@ -128,7 +128,7 @@ export function calculateTOPSIS(criteria: Criterion[], alternatives: Alternative
   steps.push({
     title: 'Final Score Calculation',
     description: 'Calculate the relative closeness of each alternative to the ideal solution.',
-    formula: 'C_i = d_i- / (d_i+ + d_i-)',
+    formula: 'C_i = \\frac{d_i^-}{d_i^+ + d_i^-}',
     type: 'list',
     data: Object.fromEntries(ranked.map(r => [r.name, { score: r.score }]))
   });
@@ -173,7 +173,7 @@ export function calculateVIKOR(criteria: Criterion[], alternatives: Alternative[
   steps.push({
     title: 'S and R values',
     description: 'S (Utility measure) and R (Regret measure) calculated for each alternative.',
-    formula: 'S_i = Σ w_j * (f*_j - f_ij) / (f*_j - f-_j) | R_i = max [w_j * (f*_j - f_ij) / (f*_j - f-_j)]',
+    formula: 'S_i = \\sum_{j=1}^{n} w_j \\frac{f^*_j - f_{ij}}{f^*_j - f^-_j} \\quad R_i = \\max_j \\left[ w_j \\frac{f^*_j - f_{ij}}{f^*_j - f^-_j} \\right]',
     type: 'list',
     data: { S, R }
   });
@@ -219,7 +219,7 @@ export function calculateMOORA(criteria: Criterion[], alternatives: Alternative[
   steps.push({
     title: 'Normalized Matrix',
     description: 'Ratio-based normalization applied.',
-    formula: 'x*_ij = x_ij / √Σx_ij²',
+    formula: 'x^*_{ij} = \\frac{x_{ij}}{\\sqrt{\\sum_{i=1}^{m} x_{ij}^2}}',
     type: 'matrix',
     data: normMatrix
   });
@@ -265,7 +265,7 @@ export function calculateCOPRAS(criteria: Criterion[], alternatives: Alternative
   steps.push({
     title: 'Weighted Normalized Matrix',
     description: 'Linear normalization multiplied by weights.',
-    formula: 'x*_ij = w_j * (x_ij / Σx_ij)',
+    formula: 'x^*_{ij} = w_j \\frac{x_{ij}}{\\sum_{i=1}^{m} x_{ij}}',
     type: 'matrix',
     data: normMatrix
   });
@@ -365,7 +365,7 @@ export function calculateAHP(criteria: Criterion[], alternatives: Alternative[])
   steps.push({
     title: 'Normalized Matrix (AHP)',
     description: 'Each value is divided by the sum of its column.',
-    formula: 'r_ij = x_ij / Σx_ij',
+    formula: 'r_{ij} = \\frac{x_{ij}}{\\sum_{i=1}^{m} x_{ij}}',
     type: 'matrix',
     data: normMatrix
   });
@@ -439,7 +439,7 @@ export function calculateARAS(criteria: Criterion[], alternatives: Alternative[]
   steps.push({
     title: 'Weighted Normalized Matrix (ARAS)',
     description: 'Normalization includes the optimal alternative (A0).',
-    formula: 'Benefit: r_ij = x_ij / Σx_ij | Cost: r_ij = (1/x_ij) / Σ(1/x_ij)',
+    formula: '\\text{Benefit: } r_{ij} = \\frac{x_{ij}}{\\sum_{i=1}^{m} x_{ij}} \\quad \\text{Cost: } r_{ij} = \\frac{1/x_{ij}}{\\sum_{i=1}^{m} (1/x_{ij})}',
     type: 'matrix',
     data: weightedMatrix
   });
@@ -488,7 +488,7 @@ export function calculateSMART(criteria: Criterion[], alternatives: Alternative[
   steps.push({
     title: 'SMART Normalization',
     description: 'Linear scaling to 0-1 range.',
-    formula: 'Benefit: (x - min) / (max - min) | Cost: (max - x) / (max - min)',
+    formula: '\\text{Benefit: } \\frac{x - \\min}{\\max - \\min} \\quad \\text{Cost: } \\frac{\\max - x}{\\max - \\min}',
     type: 'matrix',
     data: normalizedMatrix
   });
@@ -537,7 +537,7 @@ export function calculateMEW(criteria: Criterion[], alternatives: Alternative[])
   steps.push({
     title: 'Multiplicative Aggregation',
     description: 'Alternatives are evaluated by multiplying criteria values raised to the power of their weights.',
-    formula: 'V_i = Π (x_ij ^ w_j) for benefit, (x_ij ^ -w_j) for cost',
+    formula: 'V_i = \\prod_{j=1}^{n} x_{ij}^{w_j} \\text{ for benefit, } x_{ij}^{-w_j} \\text{ for cost}',
     type: 'list',
     data: Object.fromEntries(results.map(r => [r.name, { score: r.score }]))
   });
@@ -888,7 +888,7 @@ export function calculateGRA(criteria: Criterion[], alternatives: Alternative[],
   steps.push({
     title: 'GRA Normalization',
     description: 'Normalizes the decision matrix to a 0-1 range.',
-    formula: 'Benefit: (x - min) / (max - min) | Cost: (max - x) / (max - min)',
+    formula: '\\text{Benefit: } \\frac{x - \\min}{\\max - \\min} \\quad \\text{Cost: } \\frac{\\max - x}{\\max - \\min}',
     type: 'matrix',
     data: normMatrix
   });

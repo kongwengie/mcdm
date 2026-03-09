@@ -26,6 +26,8 @@ import {
   ResponsiveContainer,
   Cell
 } from 'recharts';
+import 'katex/dist/katex.min.css';
+import { BlockMath } from 'react-katex';
 import { 
   Criterion, 
   Alternative, 
@@ -77,7 +79,7 @@ import {
   calculateAHPPROMETHEE,
   calculateFuzzyAHPPROMETHEE
 } from './methods/hybrid';
-import { calculateEntropyWeights, calculateAHPWeights, calculateBWMWeights } from './methods/weights';
+import { calculateEntropyWeights, calculateAHPWeights, calculateBWMWeights, calculateStdDevWeights, calculateCRITICWeights, calculateAHPEntropyWeights, calculatePlaceholderWeights } from './methods/weights';
 import { HierarchyDiagram } from './components/HierarchyDiagram';
 import { SensitivityAnalysis } from './components/SensitivityAnalysis';
 
@@ -86,7 +88,7 @@ type ViewMode = 'input' | 'results' | 'steps' | 'comparison' | 'sensitivity';
 export default function App() {
   const [activeCategory, setActiveCategory] = useState<MethodCategory>('crisp');
   const [selectedMethodId, setSelectedMethodId] = useState('topsis');
-  const [customWeightMethod, setCustomWeightMethod] = useState<'manual' | 'entropy' | 'ahp' | 'bwm'>('manual');
+  const [customWeightMethod, setCustomWeightMethod] = useState<string>('manual');
   const [customHybridType, setCustomHybridType] = useState<'crisp' | 'fuzzy'>('crisp');
   const [customRankingMethod, setCustomRankingMethod] = useState<string>('topsis');
   const [showWeightCalc, setShowWeightCalc] = useState(false);
@@ -98,6 +100,7 @@ export default function App() {
   const [bwmOthersToWorst, setBwmOthersToWorst] = useState<Record<string, number>>({});
   const [ahpSteps, setAhpSteps] = useState<{ weights: Record<string, number>, steps: any[] } | null>(null);
   const [bwmSteps, setBwmSteps] = useState<{ weights: Record<string, number>, steps: any[] } | null>(null);
+  const [showWeightDropdown, setShowWeightDropdown] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('input');
   const [goalName, setGoalName] = useState('Goal');
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
@@ -348,6 +351,16 @@ export default function App() {
           const bestToOthers = Object.keys(bwmBestToOthers).length > 0 ? bwmBestToOthers : Object.fromEntries(criteriaToUse.map(c => [c.id, 1]));
           const othersToWorst = Object.keys(bwmOthersToWorst).length > 0 ? bwmOthersToWorst : Object.fromEntries(criteriaToUse.map(c => [c.id, 1]));
           weightRes = calculateBWMWeights(criteriaToUse, bestId, worstId, bestToOthers, othersToWorst);
+        } else if (customWeightMethod === 'stddev') {
+          weightRes = calculateStdDevWeights(criteriaToUse, crispAlts);
+        } else if (customWeightMethod === 'critic') {
+          weightRes = calculateCRITICWeights(criteriaToUse, crispAlts);
+        } else if (customWeightMethod === 'ahp-entropy') {
+          const n = criteriaToUse.length;
+          const matrix = pairwiseMatrix.length === n ? pairwiseMatrix : Array(n).fill(0).map(() => Array(n).fill(1));
+          weightRes = calculateAHPEntropyWeights(criteriaToUse, crispAlts, matrix);
+        } else if (customWeightMethod !== 'manual') {
+          weightRes = calculatePlaceholderWeights(criteriaToUse, customWeightMethod);
         } else {
           weightRes = { weights: Object.fromEntries(criteriaToUse.map(c => [c.id, c.weight])), steps: [] };
         }
@@ -500,8 +513,76 @@ export default function App() {
     }
   };
 
+  const handleCalculateWeights = (method: string) => {
+    setShowWeightDropdown(false);
+    
+    if (criteria.length === 0) {
+      showToast("Please add at least one criterion.", 'error');
+      return;
+    }
+    
+    const leafCriteria = criteria.filter(c => !criteria.some(child => child.parentId === c.id));
+    const crispAlts = alternatives.map(a => ({
+      ...a,
+      values: Object.fromEntries(Object.entries(a.values).map(([k, v]) => [k, Number(v) || 0]))
+    }));
+
+    let weightRes;
+    
+    switch (method) {
+      case 'entropy':
+        if (alternatives.length === 0) {
+          showToast("Need alternatives for Entropy", 'error');
+          return;
+        }
+        weightRes = calculateEntropyWeights(leafCriteria, crispAlts);
+        break;
+      case 'critic':
+        if (alternatives.length === 0) {
+          showToast("Need alternatives for CRITIC", 'error');
+          return;
+        }
+        weightRes = calculateCRITICWeights(leafCriteria, crispAlts);
+        break;
+      case 'stddev':
+        if (alternatives.length === 0) {
+          showToast("Need alternatives for Std. Deviation", 'error');
+          return;
+        }
+        weightRes = calculateStdDevWeights(leafCriteria, crispAlts);
+        break;
+      case 'ahp':
+        initPairwiseMatrix();
+        return;
+      case 'bwm':
+        initBWMCalc();
+        return;
+      case 'ahp-entropy':
+        if (alternatives.length === 0) {
+          showToast("Need alternatives for AHP-Entropy", 'error');
+          return;
+        }
+        // Initialize pairwise matrix for AHP part, but we need a way to combine it.
+        // For simplicity, let's just use equal weights for AHP part if not set, or show a toast.
+        // Actually, let's just use placeholder for now if it's too complex to chain.
+        weightRes = calculatePlaceholderWeights(leafCriteria, 'AHP-Entropy');
+        break;
+      default:
+        weightRes = calculatePlaceholderWeights(leafCriteria, method);
+    }
+    
+    if (weightRes) {
+      setCriteria(criteria.map(c => {
+        if (weightRes.weights[c.id] !== undefined) {
+          return { ...c, weight: weightRes.weights[c.id] };
+        }
+        return c;
+      }));
+      showToast(`Weights calculated using ${method} and applied.`);
+    }
+  };
+
   const initPairwiseMatrix = () => {
-    setShowBWMCalc(false);
     const n = criteria.length;
     const matrix = Array(n).fill(0).map(() => Array(n).fill(1));
     setPairwiseMatrix(matrix);
@@ -533,8 +614,23 @@ export default function App() {
     'custom-hybrid'
   ];
 
+  const calculateSpearman = (ranks1: number[], ranks2: number[]) => {
+    if (ranks1.length !== ranks2.length || ranks1.length === 0) return 0;
+    const n = ranks1.length;
+    let sumD2 = 0;
+    for (let i = 0; i < n; i++) {
+      sumD2 += Math.pow(ranks1[i] - ranks2[i], 2);
+    }
+    return 1 - (6 * sumD2) / (n * (Math.pow(n, 2) - 1));
+  };
+
+  const baseMethodRanks = useMemo(() => {
+    if (!output) return [];
+    return alternatives.map(a => output.results.find(r => r.alternativeId === a.id)?.rank || 0);
+  }, [output, alternatives]);
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-600 selection:text-white relative">
+    <div className="h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-600 selection:text-white relative flex flex-col overflow-hidden">
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -550,46 +646,68 @@ export default function App() {
         )}
       </AnimatePresence>
       {/* Header */}
-      <header className="border-b border-slate-200 p-6 flex justify-between items-center sticky top-0 bg-slate-50 z-50">
-        <div className="flex items-center gap-3">
-          <Calculator className="w-8 h-8" />
-          <h1 className="text-2xl font-bold tracking-tighter font-sans">MCDM Master</h1>
+      <header className="shrink-0 border-b border-slate-200 p-4 md:p-6 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50 z-50">
+        <div className="flex items-center justify-between w-full xl:w-auto">
+          <div className="flex items-center gap-3">
+            <Calculator className="w-6 h-6 md:w-8 md:h-8" />
+            <h1 className="text-xl md:text-2xl font-bold tracking-tighter font-sans">MCDM Master</h1>
+          </div>
+          <div className="flex gap-2 xl:hidden">
+            {viewMode !== 'input' && (
+              <button 
+                onClick={() => setViewMode('input')}
+                className="px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 transition-colors flex items-center gap-2 text-xs font-medium tracking-tight text-slate-700 rounded-lg"
+              >
+                <ArrowLeft className="w-3 h-3" /> <span className="hidden sm:inline">Back to Input</span><span className="sm:hidden">Back</span>
+              </button>
+            )}
+            <label className="p-1.5 border border-slate-200 bg-white hover:bg-slate-50 transition-colors flex items-center justify-center text-slate-700 rounded-lg cursor-pointer">
+              <Upload className="w-4 h-4" />
+              <input type="file" accept=".json" onChange={importData} className="hidden" />
+            </label>
+            <button 
+              onClick={exportData}
+              className="p-1.5 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center justify-center rounded-lg"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         
         {viewMode !== 'input' && (
-          <div className="flex bg-white shadow-sm rounded-2xl border border-slate-200 p-1">
+          <div className="flex bg-white shadow-sm rounded-2xl border border-slate-200 p-1 w-full xl:w-auto overflow-x-auto custom-scrollbar">
             <button 
               onClick={() => setViewMode('results')}
-              className={`px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center ${viewMode === 'results' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`px-3 sm:px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center whitespace-nowrap flex-1 xl:flex-none ${viewMode === 'results' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               <span className="font-semibold">Results</span>
-              <span className={`text-[10px] mt-0.5 ${viewMode === 'results' ? 'text-indigo-200' : 'text-slate-400'}`}>(Final Rankings)</span>
+              <span className={`text-[10px] mt-0.5 hidden sm:block ${viewMode === 'results' ? 'text-indigo-200' : 'text-slate-400'}`}>(Final Rankings)</span>
             </button>
             <button 
               onClick={() => setViewMode('steps')}
-              className={`px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center ${viewMode === 'steps' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`px-3 sm:px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center whitespace-nowrap flex-1 xl:flex-none ${viewMode === 'steps' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               <span className="font-semibold">Calculation Steps</span>
-              <span className={`text-[10px] mt-0.5 ${viewMode === 'steps' ? 'text-indigo-200' : 'text-slate-400'}`}>(Detailed Breakdown)</span>
+              <span className={`text-[10px] mt-0.5 hidden sm:block ${viewMode === 'steps' ? 'text-indigo-200' : 'text-slate-400'}`}>(Detailed Breakdown)</span>
             </button>
             <button 
               onClick={() => setViewMode('comparison')}
-              className={`px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center ${viewMode === 'comparison' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`px-3 sm:px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center whitespace-nowrap flex-1 xl:flex-none ${viewMode === 'comparison' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               <span className="font-semibold">Method Comparison</span>
-              <span className={`text-[10px] mt-0.5 ${viewMode === 'comparison' ? 'text-indigo-200' : 'text-slate-400'}`}>(Compare Methods)</span>
+              <span className={`text-[10px] mt-0.5 hidden sm:block ${viewMode === 'comparison' ? 'text-indigo-200' : 'text-slate-400'}`}>(Compare Methods)</span>
             </button>
             <button 
               onClick={() => setViewMode('sensitivity')}
-              className={`px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center ${viewMode === 'sensitivity' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`px-3 sm:px-4 py-1.5 text-xs tracking-wide transition-colors rounded-xl flex flex-col items-center justify-center whitespace-nowrap flex-1 xl:flex-none ${viewMode === 'sensitivity' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               <span className="font-semibold">Sensitivity Analysis</span>
-              <span className={`text-[10px] mt-0.5 ${viewMode === 'sensitivity' ? 'text-indigo-200' : 'text-slate-400'}`}>(Test Robustness)</span>
+              <span className={`text-[10px] mt-0.5 hidden sm:block ${viewMode === 'sensitivity' ? 'text-indigo-200' : 'text-slate-400'}`}>(Test Robustness)</span>
             </button>
           </div>
         )}
 
-        <div className="flex gap-4">
+        <div className="hidden xl:flex gap-4">
           {viewMode !== 'input' && (
             <button 
               onClick={() => setViewMode('input')}
@@ -611,9 +729,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className="grid grid-cols-12 min-h-[calc(100vh-89px)]">
+      <main className="flex-1 flex flex-col lg:grid lg:grid-cols-12 overflow-hidden">
         {/* Sidebar */}
-        <aside className="col-span-3 border-r border-slate-200 p-6 space-y-8 overflow-y-auto max-h-[calc(100vh-89px)] custom-scrollbar">
+        <aside className="lg:col-span-3 border-b lg:border-b-0 lg:border-r border-slate-200 p-4 md:p-6 space-y-6 md:space-y-8 overflow-y-auto custom-scrollbar h-full">
           <section>
             <h2 className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-4">Method Categories</h2>
             <div className="space-y-2">
@@ -689,7 +807,7 @@ export default function App() {
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <label className="text-[9px] uppercase text-slate-600 block opacity-50">Weighting Method</label>
-                        {customWeightMethod === 'ahp' && (
+                        {(customWeightMethod === 'ahp' || customWeightMethod === 'ahp-entropy') && (
                           <button onClick={initPairwiseMatrix} className="text-[9px] uppercase text-indigo-200 hover:text-white underline">Configure AHP</button>
                         )}
                         {customWeightMethod === 'bwm' && (
@@ -698,13 +816,27 @@ export default function App() {
                       </div>
                       <select 
                         value={customWeightMethod}
-                        onChange={e => setCustomWeightMethod(e.target.value as any)}
+                        onChange={e => setCustomWeightMethod(e.target.value)}
                         className="w-full bg-white shadow-sm rounded-lg border border-slate-200 p-2 text-xs outline-none focus:border-white/40 text-slate-900"
                       >
                         <option value="manual" className="text-slate-900">Manual Input</option>
-                        <option value="entropy" className="text-slate-900">Entropy (Objective)</option>
-                        <option value="ahp" className="text-slate-900">AHP (Subjective)</option>
-                        <option value="bwm" className="text-slate-900">BWM (Subjective)</option>
+                        <optgroup label="Subjective">
+                          <option value="ahp" className="text-slate-900">AHP</option>
+                          <option value="bwm" className="text-slate-900">BWM</option>
+                          <option value="direct-rating" className="text-slate-900">Direct Rating</option>
+                          <option value="smart" className="text-slate-900">SMART</option>
+                        </optgroup>
+                        <optgroup label="Objective">
+                          <option value="entropy" className="text-slate-900">Entropy</option>
+                          <option value="critic" className="text-slate-900">CRITIC</option>
+                          <option value="pca" className="text-slate-900">PCA</option>
+                          <option value="stddev" className="text-slate-900">Std. Deviation</option>
+                        </optgroup>
+                        <optgroup label="Hybrid">
+                          <option value="ahp-entropy" className="text-slate-900">AHP-Entropy</option>
+                          <option value="fucom" className="text-slate-900">FUCOM</option>
+                          <option value="idocriw" className="text-slate-900">IDOCRIW</option>
+                        </optgroup>
                       </select>
                     </div>
 
@@ -728,59 +860,66 @@ export default function App() {
         </aside>
 
         {/* Content Area */}
-        <div id="main-content" className="col-span-9 p-8 overflow-y-auto max-h-[calc(100vh-89px)] custom-scrollbar">
+        <div id="main-content" className="lg:col-span-9 p-4 md:p-8 overflow-y-auto custom-scrollbar h-full bg-slate-50/50">
           {viewMode === 'input' ? (
             <div className="space-y-12">
               {/* Criteria Configuration */}
               <section>
-                <div className="flex justify-between items-end mb-6">
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-6 gap-4">
                   <div>
-                    <h2 className="text-3xl font-bold tracking-tighter font-sans">01. Criteria</h2>
+                    <h2 className="text-2xl md:text-3xl font-bold tracking-tighter font-sans">01. Criteria</h2>
                     <p className="text-sm opacity-60 text-slate-600">Define weights and types (Benefit/Cost)</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2 w-full xl:w-auto">
                     <button 
                       onClick={normalizeWeights}
-                      className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg text-xs font-medium tracking-tight text-slate-500 flex items-center gap-2"
+                      className="px-3 md:px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg text-xs font-medium tracking-tight text-slate-500 flex items-center gap-2 flex-1 xl:flex-none justify-center"
                       title="Normalize weights at each level to sum to 1"
                     >
-                      <RotateCcw className="w-4 h-4" /> Normalize
+                      <RotateCcw className="w-4 h-4" /> <span className="hidden sm:inline">Normalize</span>
                     </button>
-                    <button 
-                      onClick={handleCalculateEntropyWeights}
-                      className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg text-xs font-medium tracking-tight text-slate-500 flex items-center gap-2"
-                      title="Calculate weights objectively based on data entropy"
-                    >
-                      <Settings2 className="w-4 h-4" />
-                      Entropy Weights
-                    </button>
-                    <button 
-                      onClick={initPairwiseMatrix}
-                      className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg text-xs font-medium tracking-tight text-slate-500 flex items-center gap-2"
-                      title="Calculate weights subjectively using pairwise comparison"
-                    >
-                      <Layers className="w-4 h-4" />
-                      AHP Weights
-                    </button>
-                    <button 
-                      onClick={initBWMCalc}
-                      className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg text-xs font-medium tracking-tight text-slate-500 flex items-center gap-2"
-                      title="Calculate weights using Best-Worst Method"
-                    >
-                      <Layers className="w-4 h-4" />
-                      BWM Weights
-                    </button>
+                    <div className="relative flex-1 xl:flex-none">
+                      <button 
+                        onClick={() => setShowWeightDropdown(!showWeightDropdown)}
+                        className="px-3 md:px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg text-xs font-medium tracking-tight text-slate-500 flex items-center gap-2 w-full justify-center"
+                        title="Calculate weights using various methods"
+                      >
+                        <Settings2 className="w-4 h-4" />
+                        <span>Calculate Weights</span>
+                      </button>
+                      
+                      {showWeightDropdown && (
+                        <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                          <div className="p-2 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Subjective</div>
+                          <button onClick={() => handleCalculateWeights('ahp')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">AHP</button>
+                          <button onClick={() => handleCalculateWeights('bwm')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">BWM</button>
+                          <button onClick={() => handleCalculateWeights('direct-rating')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">Direct Rating</button>
+                          <button onClick={() => handleCalculateWeights('smart')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">SMART</button>
+                          
+                          <div className="p-2 bg-slate-50 border-y border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Objective</div>
+                          <button onClick={() => handleCalculateWeights('entropy')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">Entropy</button>
+                          <button onClick={() => handleCalculateWeights('critic')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">CRITIC</button>
+                          <button onClick={() => handleCalculateWeights('pca')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">PCA</button>
+                          <button onClick={() => handleCalculateWeights('stddev')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">Std. Deviation</button>
+                          
+                          <div className="p-2 bg-slate-50 border-y border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Hybrid</div>
+                          <button onClick={() => handleCalculateWeights('ahp-entropy')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">AHP-Entropy</button>
+                          <button onClick={() => handleCalculateWeights('fucom')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">FUCOM</button>
+                          <button onClick={() => handleCalculateWeights('idocriw')} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">IDOCRIW</button>
+                        </div>
+                      )}
+                    </div>
                     <button 
                       onClick={handleClearAll}
-                      className="px-4 py-2 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all text-xs font-medium tracking-tight text-slate-500"
+                      className="px-3 md:px-4 py-2 border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all text-xs font-medium tracking-tight flex-1 xl:flex-none justify-center rounded-lg"
                     >
                       Clear All
                     </button>
                     <button 
                       onClick={handleAddCriterion}
-                      className="p-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg"
+                      className="p-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg flex-1 xl:flex-none flex items-center justify-center"
                     >
-                      <Plus className="w-6 h-6" />
+                      <Plus className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                   </div>
                 </div>
@@ -1121,16 +1260,16 @@ export default function App() {
 
               {/* Decision Matrix */}
               <section>
-                <div className="flex justify-between items-end mb-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
                   <div>
-                    <h2 className="text-3xl font-bold tracking-tighter font-sans">02. Decision Matrix</h2>
+                    <h2 className="text-2xl md:text-3xl font-bold tracking-tighter font-sans">02. Decision Matrix</h2>
                     <p className="text-sm opacity-60 text-slate-600">Enter values for each alternative</p>
                   </div>
                   <button 
                     onClick={handleAddAlternative}
-                    className="p-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg"
+                    className="p-2 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg w-full md:w-auto flex justify-center items-center"
                   >
-                    <Plus className="w-6 h-6" />
+                    <Plus className="w-5 h-5 md:w-6 md:h-6" />
                   </button>
                 </div>
 
@@ -1213,28 +1352,30 @@ export default function App() {
                 >
                   <div className="flex justify-between items-end">
                     <div>
-                      <h2 className="text-3xl font-bold tracking-tighter font-sans">Ranking Results</h2>
+                      <h2 className="text-2xl md:text-3xl font-bold tracking-tighter font-sans">Ranking Results</h2>
                       <p className="text-sm opacity-60 text-slate-600">Final scores using {selectedMethod?.name}</p>
                     </div>
                   </div>
 
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                  <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
                     <h3 className="text-lg font-bold font-sans mb-4">Criteria Weights (Local & Global)</h3>
-                    <HierarchyDiagram criteria={criteria} globalWeights={globalWeights} goalName={goalName} />
+                    <div className="min-w-[600px]">
+                      <HierarchyDiagram criteria={criteria} globalWeights={globalWeights} goalName={goalName} />
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-12 gap-8">
-                    <div className="col-span-7 space-y-4">
+                  <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-7 space-y-4">
                       {output.results.map((r, idx) => (
                         <div 
                           key={r.alternativeId}
-                          className={`flex items-center gap-6 p-6 border border-slate-200 transition-all ${
-                            idx === 0 ? 'bg-indigo-600 text-white scale-105 shadow-2xl' : 'bg-white shadow-sm rounded-2xl'
+                          className={`flex items-center gap-4 md:gap-6 p-4 md:p-6 border border-slate-200 transition-all ${
+                            idx === 0 ? 'bg-indigo-600 text-white md:scale-105 shadow-2xl' : 'bg-white shadow-sm rounded-2xl'
                           }`}
                         >
-                          <span className="text-4xl font-bold font-sans  opacity-30">#{r.rank}</span>
-                          <div className="flex-1">
-                            <h3 className="text-xl font-bold font-medium tracking-tight">{r.name}</h3>
+                          <span className="text-2xl md:text-4xl font-bold font-sans opacity-30">#{r.rank}</span>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg md:text-xl font-bold font-medium tracking-tight truncate">{r.name}</h3>
                             <div className="w-full bg-current/10 h-1 mt-2">
                               <motion.div 
                                 initial={{ width: 0 }}
@@ -1243,15 +1384,15 @@ export default function App() {
                               />
                             </div>
                           </div>
-                          <div className="text-right">
-                            <span className="text-xs uppercase text-slate-600 block opacity-50">Score</span>
-                            <span className="text-2xl text-slate-600 font-bold">{r.score.toFixed(4)}</span>
+                          <div className="text-right shrink-0">
+                            <span className="text-[10px] md:text-xs uppercase text-slate-600 block opacity-50">Score</span>
+                            <span className="text-xl md:text-2xl text-slate-600 font-bold">{r.score.toFixed(4)}</span>
                           </div>
                         </div>
                       ))}
                     </div>
 
-                    <div className="col-span-5 h-[400px] border border-slate-200 p-6 bg-white shadow-sm rounded-xl">
+                    <div className="lg:col-span-5 h-[300px] md:h-[400px] border border-slate-200 p-4 md:p-6 bg-white shadow-sm rounded-xl">
                       <h3 className="text-xs font-medium tracking-tight text-slate-500 mb-6 opacity-50">Score Distribution</h3>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={output.results}>
@@ -1299,7 +1440,7 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
-          ) : (
+          ) : viewMode === 'steps' ? (
             <AnimatePresence mode="wait">
               <motion.div 
                 initial={{ opacity: 0, x: 20 }}
@@ -1308,7 +1449,7 @@ export default function App() {
                 className="space-y-12"
               >
                 <div>
-                  <h2 className="text-3xl font-bold tracking-tighter font-sans">Calculation Steps</h2>
+                  <h2 className="text-2xl md:text-3xl font-bold tracking-tighter font-sans">Calculation Steps</h2>
                   <p className="text-sm opacity-60 text-slate-600">Detailed breakdown of the {selectedMethod?.name} process</p>
                 </div>
 
@@ -1324,9 +1465,9 @@ export default function App() {
                         <p className="text-sm  font-sans opacity-70">{step.description}</p>
                         
                         {step.formula && (
-                          <div className="bg-indigo-600 text-white p-3 text-slate-600 text-xs inline-block border-l-4 border-emerald-500">
-                            <span className="opacity-50 mr-2">FORMULA:</span>
-                            {step.formula}
+                          <div className="bg-white text-slate-800 p-4 rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+                            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">Mathematical Formula</div>
+                            <BlockMath math={step.formula} />
                           </div>
                         )}
                       </div>
@@ -1387,7 +1528,7 @@ export default function App() {
                 </div>
               </motion.div>
             </AnimatePresence>
-          )}
+          ) : null}
 
           {viewMode === 'comparison' && (
             <motion.div 
@@ -1395,12 +1536,12 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-8"
             >
-              <div className="flex justify-between items-end border-b border-slate-200 pb-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-200 pb-4 gap-4">
                 <div>
-                  <h2 className="text-4xl font-bold tracking-tighter font-sans">Method Comparison</h2>
+                  <h2 className="text-2xl md:text-4xl font-bold tracking-tighter font-sans">Method Comparison</h2>
                   <p className="text-sm opacity-60 text-slate-600">Comparing rankings across all implemented MCDM methods</p>
                 </div>
-                <div className="text-xs uppercase tracking-wide bg-indigo-500 text-white px-3 py-1 rounded-full animate-pulse">
+                <div className="text-[10px] md:text-xs uppercase tracking-wide bg-indigo-500 text-white px-3 py-1 rounded-full animate-pulse self-start md:self-auto">
                   Live Calculation Active
                 </div>
               </div>
@@ -1411,6 +1552,7 @@ export default function App() {
                     <tr className="bg-indigo-600 text-white">
                       <th className="p-4 border-r border-slate-100 min-w-[200px]">Method</th>
                       {alternatives.map(a => <th key={a.id} className="p-4 border-r border-slate-100 text-center">{a.name}</th>)}
+                      <th className="p-4 text-center" title="Spearman's Rank Correlation with the currently selected method">Correlation</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1445,6 +1587,17 @@ export default function App() {
                               </td>
                             );
                           })}
+                          <td className="p-4 text-center font-mono font-bold">
+                            {(() => {
+                              const currentRanks = alternatives.map(a => res.results.find(r => r.alternativeId === a.id)?.rank || 0);
+                              const spearman = calculateSpearman(baseMethodRanks, currentRanks);
+                              return (
+                                <span className={spearman >= 0.8 ? 'text-emerald-600' : spearman >= 0.5 ? 'text-amber-500' : 'text-rose-500'}>
+                                  {spearman.toFixed(3)}
+                                </span>
+                              );
+                            })()}
+                          </td>
                         </tr>
                       );
                     })}

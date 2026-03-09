@@ -33,13 +33,15 @@ export const HierarchyDiagram: React.FC<HierarchyDiagramProps> = ({ criteria, gl
       children: buildTree(undefined)
     };
 
-    const width = 800;
-    const height = 400;
-    const margin = { top: 40, right: 120, bottom: 40, left: 120 };
+    const width = 1000;
+    const height = Math.max(500, criteria.length * 40);
+    const margin = { top: 40, right: 150, bottom: 40, left: 150 };
 
     const svg = d3.select(svgRef.current)
-      .attr("width", width)
-      .attr("height", height)
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .style("width", "100%")
+      .style("height", "auto")
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
@@ -59,7 +61,7 @@ export const HierarchyDiagram: React.FC<HierarchyDiagramProps> = ({ criteria, gl
       .attr("fill", "none")
       .attr("stroke", "#cbd5e1")
       .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", 1.5);
+      .attr("stroke-width", 2);
 
     // Nodes
     const node = svg.selectAll(".node")
@@ -69,39 +71,44 @@ export const HierarchyDiagram: React.FC<HierarchyDiagramProps> = ({ criteria, gl
       .attr("class", "node")
       .attr("transform", (d: any) => `translate(${d.y},${d.x})`);
 
-    node.append("circle")
-      .attr("r", 6)
+    // Node Backgrounds (Rectangles)
+    node.append("rect")
+      .attr("x", -60)
+      .attr("y", -20)
+      .attr("width", 120)
+      .attr("height", 40)
+      .attr("rx", 8)
+      .attr("ry", 8)
       .attr("fill", (d: any) => d.data.isGoal ? "#4f46e5" : "#ffffff")
-      .attr("stroke", "#4f46e5")
-      .attr("stroke-width", 2);
+      .attr("stroke", (d: any) => d.data.isGoal ? "#4f46e5" : "#e2e8f0")
+      .attr("stroke-width", 2)
+      .attr("filter", "drop-shadow(0 4px 6px rgba(0,0,0,0.05))");
 
+    // Node Text (Name)
     node.append("text")
-      .attr("dy", ".35em")
-      .attr("x", (d: any) => d.children ? -12 : 12)
-      .attr("text-anchor", (d: any) => d.children ? "end" : "start")
-      .text((d: any) => d.data.name)
+      .attr("dy", (d: any) => (d.data.isGoal || !d.data.weight) ? "0.35em" : "-0.2em")
+      .attr("text-anchor", "middle")
+      .text((d: any) => d.data.name.length > 15 ? d.data.name.substring(0, 12) + '...' : d.data.name)
       .attr("font-family", "Inter, sans-serif")
-      .attr("font-size", "10px")
-      .attr("font-weight", (d: any) => d.data.isGoal ? "bold" : "normal")
-      .attr("fill", "#334155");
+      .attr("font-size", "12px")
+      .attr("font-weight", "600")
+      .attr("fill", (d: any) => d.data.isGoal ? "#ffffff" : "#1e293b");
 
-    // Add weights if present
+    // Node Text (Weights)
     node.append("text")
-      .attr("dy", "1.5em")
-      .attr("x", (d: any) => d.children ? -12 : 12)
-      .attr("text-anchor", (d: any) => d.children ? "end" : "start")
+      .attr("dy", "1.2em")
+      .attr("text-anchor", "middle")
       .text((d: any) => {
         if (d.data.isGoal) return "";
-        const local = d.data.weight ? `L: ${d.data.weight.toFixed(2)}` : "";
-        const global = globalWeights && globalWeights[d.data.id] ? `G: ${globalWeights[d.data.id].toFixed(3)}` : "";
-        return local && global ? `(${local}, ${global})` : local ? `(${local})` : "";
+        const local = d.data.weight ? `L:${d.data.weight.toFixed(2)}` : "";
+        const global = globalWeights && globalWeights[d.data.id] ? `G:${globalWeights[d.data.id].toFixed(3)}` : "";
+        return local && global ? `${local} | ${global}` : local ? local : "";
       })
       .attr("font-family", "JetBrains Mono, monospace")
-      .attr("font-size", "8px")
-      .attr("opacity", 0.8)
+      .attr("font-size", "9px")
       .attr("fill", "#64748b");
 
-  }, [criteria, goalName]);
+  }, [criteria, goalName, globalWeights]);
 
   const handleDownload = () => {
     if (!svgRef.current) return;
@@ -118,14 +125,14 @@ export const HierarchyDiagram: React.FC<HierarchyDiagramProps> = ({ criteria, gl
   };
 
   return (
-    <div className="w-full overflow-x-auto bg-white shadow-sm rounded-2xl border border-slate-200 p-4 relative">
+    <div className="w-full overflow-x-auto bg-slate-50 shadow-sm rounded-2xl border border-slate-200 p-6 relative">
       <button 
         onClick={handleDownload}
-        className="absolute top-2 right-2 px-2 py-1 text-xs uppercase text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-all rounded-lg"
+        className="absolute top-4 right-4 px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-slate-600 border border-slate-200 bg-white hover:bg-slate-100 transition-all rounded-lg shadow-sm z-10"
       >
         Download SVG
       </button>
-      <svg ref={svgRef} className="mx-auto"></svg>
+      <svg ref={svgRef} className="mx-auto w-full h-auto min-h-[400px]"></svg>
     </div>
   );
 };

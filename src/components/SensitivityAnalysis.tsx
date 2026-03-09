@@ -23,7 +23,7 @@ function calculateSpearman(rank1: number[], rank2: number[]): number {
 
 export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criteria, alternatives, selectedMethodId, runMethod, originalOutput }) => {
   const [selectedCriterionId, setSelectedCriterionId] = useState<string>(criteria[0]?.id || '');
-  const [analysisType, setAnalysisType] = useState<'weight-change' | 'eighty-twenty' | 'lambda-variation'>('weight-change');
+  const [analysisType, setAnalysisType] = useState<'weight-change' | 'eighty-twenty' | 'lambda-variation' | 'method-comparison'>('weight-change');
 
   const isWaspas = selectedMethodId === 'waspas' || selectedMethodId === 'fuzzy-waspas';
 
@@ -132,6 +132,38 @@ export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criter
     return results;
   }, [criteria, alternatives, selectedMethodId, runMethod, originalOutput, analysisType, originalRanks, isWaspas]);
 
+  const methodComparisonResults = useMemo(() => {
+    if (!originalOutput || analysisType !== 'method-comparison') return null;
+    
+    const isFuzzy = selectedMethodId.startsWith('fuzzy-');
+    const methodsToCompare = isFuzzy 
+      ? ['fuzzy-topsis', 'fuzzy-vikor', 'fuzzy-saw', 'fuzzy-waspas', 'fuzzy-copras']
+      : ['topsis', 'vikor', 'saw', 'waspas', 'copras', 'moora', 'promethee'];
+    
+    const results: any[] = [];
+    
+    // We want a data structure where each alternative has its rank for each method
+    const altRanks: Record<string, any> = {};
+    alternatives.forEach(a => {
+      altRanks[a.id] = { name: a.name };
+    });
+
+    methodsToCompare.forEach(method => {
+      try {
+        const out = runMethod(method, criteria, alternatives);
+        out.results.forEach(r => {
+          if (altRanks[r.alternativeId]) {
+            altRanks[r.alternativeId][method] = r.rank;
+          }
+        });
+      } catch (e) {
+        console.error(`Failed to run method ${method} for comparison`, e);
+      }
+    });
+
+    return Object.values(altRanks);
+  }, [criteria, alternatives, selectedMethodId, runMethod, originalOutput, analysisType]);
+
   if (!originalOutput) {
     return (
       <div className="text-center py-12 border-2 border-dashed border-slate-200 opacity-40">
@@ -142,35 +174,41 @@ export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criter
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tighter font-sans">Sensitivity Analysis</h2>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tighter font-sans">Sensitivity Analysis</h2>
           <p className="text-sm opacity-60 text-slate-600">Analyze how changes in criteria weights affect the final ranking</p>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
-        <div className="flex gap-4 border-b border-slate-200 pb-4">
+      <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+        <div className="flex flex-wrap gap-2 md:gap-4 border-b border-slate-200 pb-4">
           <button 
             onClick={() => setAnalysisType('weight-change')}
-            className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${analysisType === 'weight-change' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`px-3 md:px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-colors flex-1 md:flex-none text-center ${analysisType === 'weight-change' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
           >
             Weight Variation (±10% to ±90%)
           </button>
           <button 
             onClick={() => setAnalysisType('eighty-twenty')}
-            className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${analysisType === 'eighty-twenty' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
+            className={`px-3 md:px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-colors flex-1 md:flex-none text-center ${analysisType === 'eighty-twenty' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
           >
             80/20 Weight Distribution
           </button>
           {isWaspas && (
             <button 
               onClick={() => setAnalysisType('lambda-variation')}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${analysisType === 'lambda-variation' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-colors flex-1 md:flex-none text-center ${analysisType === 'lambda-variation' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
             >
               Lambda Variation (WASPAS)
             </button>
           )}
+          <button 
+            onClick={() => setAnalysisType('method-comparison')}
+            className={`px-3 md:px-4 py-2 text-xs md:text-sm font-bold rounded-lg transition-colors flex-1 md:flex-none text-center ${analysisType === 'method-comparison' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
+            Method Comparison
+          </button>
         </div>
 
         {analysisType === 'weight-change' && (
@@ -222,6 +260,13 @@ export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criter
                     Analysis & Conclusion
                   </h3>
                   <div className="text-sm space-y-3 font-sans text-slate-600 leading-relaxed">
+                    <div className="bg-white p-3 rounded border border-slate-200 mb-4">
+                      <p className="font-mono text-xs text-slate-700 mb-1"><strong>Weight Variation Formula:</strong></p>
+                      <p className="font-mono text-xs text-slate-600">w_new = w_old * (1 ± %change)</p>
+                      <p className="font-mono text-xs text-slate-600">w_others_new = w_others_old - (w_others_old / sum_others) * (w_new - w_old)</p>
+                      <p className="font-mono text-xs text-slate-700 mt-2 mb-1"><strong>Spearman's Rank Correlation Formula:</strong></p>
+                      <p className="font-mono text-xs text-slate-600">ρ = 1 - (6 * Σd_i²) / (n * (n² - 1))</p>
+                    </div>
                     <p>
                       <strong>Weight Variation Analysis:</strong> This chart shows how the final scores of alternatives change when the weight of the selected criterion is incrementally increased or decreased (from -90% to +90%).
                     </p>
@@ -280,6 +325,13 @@ export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criter
                     Analysis & Conclusion
                   </h3>
                   <div className="text-sm space-y-3 font-sans text-slate-600 leading-relaxed">
+                    <div className="bg-white p-3 rounded border border-slate-200 mb-4">
+                      <p className="font-mono text-xs text-slate-700 mb-1"><strong>80/20 Distribution Formula:</strong></p>
+                      <p className="font-mono text-xs text-slate-600">w_target = 0.8</p>
+                      <p className="font-mono text-xs text-slate-600">w_others = 0.2 / (n - 1)</p>
+                      <p className="font-mono text-xs text-slate-700 mt-2 mb-1"><strong>Spearman's Rank Correlation Formula:</strong></p>
+                      <p className="font-mono text-xs text-slate-600">ρ = 1 - (6 * Σd_i²) / (n * (n² - 1))</p>
+                    </div>
                     <p>
                       <strong>80/20 Distribution Analysis:</strong> This test assigns 80% of the total weight to a single criterion (shown on the X-axis) and distributes the remaining 20% equally among all others.
                     </p>
@@ -338,6 +390,11 @@ export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criter
                     Analysis & Conclusion
                   </h3>
                   <div className="text-sm space-y-3 font-sans text-slate-600 leading-relaxed">
+                    <div className="bg-white p-3 rounded border border-slate-200 mb-4">
+                      <p className="font-mono text-xs text-slate-700 mb-1"><strong>WASPAS Aggregation Formula:</strong></p>
+                      <p className="font-mono text-xs text-slate-600">Q_i = λ * Q_i^(1) + (1 - λ) * Q_i^(2)</p>
+                      <p className="font-mono text-xs text-slate-600 opacity-70">Where Q_i^(1) is WSM score and Q_i^(2) is WPM score.</p>
+                    </div>
                     <p>
                       <strong>Lambda (λ) Variation:</strong> In the WASPAS method, λ determines the balance between the Weighted Sum Model (WSM, λ=1) and the Weighted Product Model (WPM, λ=0).
                     </p>
@@ -346,6 +403,56 @@ export const SensitivityAnalysis: React.FC<SensitivityAnalysisProps> = ({ criter
                     </p>
                     <p>
                       <strong>Conclusion:</strong> A stable ranking across all λ values (0 to 1) indicates a robust decision. If the top alternative changes based on λ, you must carefully justify your choice of λ (typically 0.5) based on whether you prefer additive or multiplicative aggregation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {analysisType === 'method-comparison' && (
+          <div className="space-y-6">
+            <p className="text-sm text-slate-600">
+              This analysis compares the final rankings of alternatives across different MCDM methods to evaluate the robustness of the decision.
+            </p>
+
+            {methodComparisonResults && methodComparisonResults.length > 0 && (
+              <div className="space-y-8">
+                <div className="h-[400px] w-full">
+                  <h4 className="text-sm font-bold text-slate-800 mb-4 text-center">Alternative Rankings by Method (Lower is Better)</h4>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={methodComparisonResults}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis reversed domain={[1, alternatives.length]} tick={{ fontSize: 12 }} />
+                      <RechartsTooltip />
+                      <Legend />
+                      {Object.keys(methodComparisonResults[0]).filter(k => k !== 'name').map((method, i) => (
+                        <Line key={method} type="monotone" dataKey={method} stroke={`hsl(${i * 60 % 360}, 70%, 50%)`} strokeWidth={2} name={method.toUpperCase()} />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="mt-8 p-6 bg-slate-50 shadow-sm rounded-2xl border border-slate-200 space-y-4">
+                  <h3 className="font-bold font-medium tracking-tight flex items-center gap-2 text-slate-800">
+                    Analysis & Conclusion
+                  </h3>
+                  <div className="text-sm space-y-3 font-sans text-slate-600 leading-relaxed">
+                    <div className="bg-white p-3 rounded border border-slate-200 mb-4">
+                      <p className="font-mono text-xs text-slate-700 mb-1"><strong>Comparative Ranking Analysis:</strong></p>
+                      <p className="font-mono text-xs text-slate-600">Compares R_i^(m) across methods m ∈ M.</p>
+                      <p className="font-mono text-xs text-slate-600 opacity-70">Where R_i^(m) is the rank of alternative i using method m.</p>
+                    </div>
+                    <p>
+                      <strong>Method Comparison Analysis:</strong> This chart displays the rank of each alternative across various MCDM methods. Note that the Y-axis is reversed, so a higher position on the chart means a better rank (1 is best).
+                    </p>
+                    <p>
+                      <strong>Robustness Check:</strong> If an alternative consistently ranks 1st across multiple methods, the decision is highly robust and independent of the specific mathematical aggregation technique used.
+                    </p>
+                    <p>
+                      <strong>Conclusion:</strong> Significant variations in ranking for an alternative suggest that its performance profile is sensitive to the specific assumptions of different MCDM methods (e.g., compensatory vs. non-compensatory).
                     </p>
                   </div>
                 </div>

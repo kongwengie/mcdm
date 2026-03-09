@@ -38,7 +38,7 @@ export function calculateFuzzyTOPSIS(criteria: Criterion[], alternatives: FuzzyA
   steps.push({
     title: 'Weighted Normalized Fuzzy Matrix',
     description: 'Fuzzy normalization and criteria weighting applied.',
-    formula: 'Benefit: r_ij = (l_ij/u_j*, m_ij/u_j*, u_ij/u_j*) | Cost: r_ij = (l_j-/u_ij, l_j-/m_ij, l_j-/l_ij)',
+    formula: '\\text{Benefit: } r_{ij} = (\\frac{l_{ij}}{u^*_j}, \\frac{m_{ij}}{u^*_j}, \\frac{u_{ij}}{u^*_j}) \\quad \\text{Cost: } r_{ij} = (\\frac{l^-_j}{u_{ij}}, \\frac{l^-_j}{m_{ij}}, \\frac{l^-_j}{l_{ij}})',
     type: 'matrix',
     data: normMatrix
   });
@@ -57,7 +57,7 @@ export function calculateFuzzyTOPSIS(criteria: Criterion[], alternatives: FuzzyA
   steps.push({
     title: 'Fuzzy PIS and NIS',
     description: 'Fuzzy Positive Ideal Solution and Fuzzy Negative Ideal Solution.',
-    formula: 'FPIS = (1,1,1) | FNIS = (0,0,0) [Standardized]',
+    formula: 'FPIS = (1,1,1) \\quad FNIS = (0,0,0) \\text{ [Standardized]}',
     type: 'list',
     data: { FPIS, FNIS }
   });
@@ -85,7 +85,7 @@ export function calculateFuzzyTOPSIS(criteria: Criterion[], alternatives: FuzzyA
   steps.push({
     title: 'Final Score Calculation',
     description: 'Calculate the relative closeness of each alternative to the fuzzy ideal solution.',
-    formula: 'CC_i = d_i- / (d_i+ + d_i-)',
+    formula: 'CC_i = \\frac{d_i^-}{d_i^+ + d_i^-}',
     type: 'list',
     data: Object.fromEntries(ranked.map(r => [r.name, { score: r.score }]))
   });
@@ -161,7 +161,7 @@ export function calculateFuzzyAHP(criteria: Criterion[], alternatives: FuzzyAlte
   steps.push({
     title: 'Fuzzy Normalized Matrix (AHP)',
     description: 'Fuzzy values normalized by the sum of their column.',
-    formula: 'r_ij = (l_ij/Σu_j, m_ij/Σm_j, u_ij/Σl_j)',
+    formula: 'r_{ij} = (\\frac{l_{ij}}{\\sum u_j}, \\frac{m_{ij}}{\\sum m_j}, \\frac{u_{ij}}{\\sum l_j})',
     type: 'matrix',
     data: normMatrix
   });
@@ -235,7 +235,7 @@ export function calculateFuzzyVIKOR(criteria: Criterion[], alternatives: FuzzyAl
   steps.push({
     title: 'Fuzzy Best and Worst Values',
     description: 'Identifies the fuzzy ideal and anti-ideal values for each criterion.',
-    formula: 'f*_j = max(f_ij) for benefit, min(f_ij) for cost',
+    formula: 'f^*_j = \\max(f_{ij}) \\text{ for benefit, } \\min(f_{ij}) \\text{ for cost}',
     type: 'list',
     data: { 'Fuzzy Best': fuzzyBest, 'Fuzzy Worst': fuzzyWorst }
   });
@@ -277,7 +277,7 @@ export function calculateFuzzyVIKOR(criteria: Criterion[], alternatives: FuzzyAl
   steps.push({
     title: 'Fuzzy S and R Values',
     description: 'S represents the utility measure, R represents the regret measure.',
-    formula: 'S_i = Σ w_j * d(f*_j, f_ij), R_i = max [w_j * d(f*_j, f_ij)]',
+    formula: 'S_i = \\sum w_j d(f^*_j, f_{ij}), \\quad R_i = \\max [w_j d(f^*_j, f_{ij})]',
     type: 'matrix',
     data: { 'Fuzzy S': fuzzyS, 'Fuzzy R': fuzzyR }
   });
@@ -310,7 +310,7 @@ export function calculateFuzzyVIKOR(criteria: Criterion[], alternatives: FuzzyAl
   steps.push({
     title: 'Fuzzy Q Index',
     description: 'The final compromise index used for ranking.',
-    formula: 'Q_i = v*(S_i-S*)/(S^- - S*) + (1-v)*(R_i-R*)/(R^- - R*)',
+    formula: 'Q_i = v \\frac{S_i - S^*}{S^- - S^*} + (1-v) \\frac{R_i - R^*}{R^- - R^*}',
     type: 'list',
     data: results.map(r => ({ name: r.name, q: 1 - r.score }))
   });
@@ -344,7 +344,7 @@ export function calculateFuzzyELECTRE(criteria: Criterion[], alternatives: Fuzzy
   steps.push({
     title: 'Fuzzy Normalized Matrix',
     description: 'Fuzzy values normalized using vector normalization.',
-    formula: 'r_ij = (l_ij/|u_j|, m_ij/|m_j|, u_ij/|l_j|)',
+    formula: 'r_{ij} = (\\frac{l_{ij}}{|u_j|}, \\frac{m_{ij}}{|m_j|}, \\frac{u_{ij}}{|l_j|})',
     type: 'matrix',
     data: normMatrix
   });
@@ -378,7 +378,7 @@ export function calculateFuzzyELECTRE(criteria: Criterion[], alternatives: Fuzzy
   steps.push({
     title: 'Fuzzy Concordance Matrix',
     description: 'Measures the degree to which fuzzy alternative A outranks B.',
-    formula: 'C(a,b) = Σ w_j where defuzz(v_aj) >= defuzz(v_bj)',
+    formula: 'C(a,b) = \\sum_{j: \\text{defuzz}(v_{aj}) \\ge \\text{defuzz}(v_{bj})} w_j',
     type: 'matrix',
     data: concordance
   });
@@ -426,7 +426,7 @@ export function calculateFuzzyCOPRAS(criteria: Criterion[], alternatives: FuzzyA
   steps.push({
     title: 'Fuzzy Weighted Normalized Matrix',
     description: 'Fuzzy values normalized and weighted.',
-    formula: 'r_ij = w_j * (f_ij / Σf_j)',
+    formula: 'r_{ij} = w_j \\frac{f_{ij}}{\\sum f_j}',
     type: 'matrix',
     data: normMatrix
   });
@@ -494,7 +494,7 @@ export function calculateFuzzyWASPAS(criteria: Criterion[], alternatives: FuzzyA
   steps.push({
     title: 'Fuzzy Normalized Matrix',
     description: 'Fuzzy values normalized based on Benefit or Cost.',
-    formula: 'Benefit: r_ij = f_ij / max(u_j) | Cost: r_ij = min(l_j) / f_ij',
+    formula: '\\text{Benefit: } r_{ij} = \\frac{f_{ij}}{\\max(u_j)} \\quad \\text{Cost: } r_{ij} = \\frac{\\min(l_j)}{f_{ij}}',
     type: 'matrix',
     data: normMatrix
   });
@@ -525,7 +525,7 @@ export function calculateFuzzyWASPAS(criteria: Criterion[], alternatives: FuzzyA
   steps.push({
     title: 'Fuzzy WASPAS Aggregation',
     description: 'Combines Fuzzy WSM and Fuzzy WPM.',
-    formula: 'Q_i = λ * WSM_i + (1-λ) * WPM_i',
+    formula: 'Q_i = \\lambda WSM_i + (1-\\lambda) WPM_i',
     type: 'list',
     data: results.map(r => ({ name: r.name, score: r.score }))
   });
@@ -603,7 +603,7 @@ export function calculateFuzzyPROMETHEE(criteria: Criterion[], alternatives: Fuz
   steps.push({
     title: 'Fuzzy Aggregated Preference Indices',
     description: 'Weighted sum of fuzzy preferences for each pair.',
-    formula: 'π(a,b) = Σ w_j * P_j(a,b)',
+    formula: '\\pi(a,b) = \\sum w_j P_j(a,b)',
     type: 'matrix',
     data: Object.fromEntries(Object.entries(aggregated).map(([k1, v1]) => [
       alternatives.find(a => a.id === k1)?.name || k1,
@@ -645,7 +645,7 @@ export function calculateFuzzyPROMETHEE(criteria: Criterion[], alternatives: Fuz
   steps.push({
     title: 'Fuzzy Outranking Flows',
     description: 'Positive, Negative, and Net Outranking Flows.',
-    formula: 'Φ+ = 1/(n-1) Σ π(a,x), Φ- = 1/(n-1) Σ π(x,a), Φ = Φ+ - Φ-',
+    formula: '\\Phi^+ = \\frac{1}{n-1} \\sum \\pi(a,x), \\quad \\Phi^- = \\frac{1}{n-1} \\sum \\pi(x,a), \\quad \\Phi = \\Phi^+ - \\Phi^-',
     type: 'list',
     data: Object.fromEntries(alternatives.map(a => [
       a.name,

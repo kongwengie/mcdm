@@ -22,7 +22,7 @@ export function calculateEntropyWeights(criteria: Criterion[], alternatives: Alt
   steps.push({
     title: 'Entropy: Normalization',
     description: 'Normalize the decision matrix to calculate probabilities.',
-    formula: 'p_ij = x_ij / Σx_ij',
+    formula: 'p_{ij} = \\frac{x_{ij}}{\\sum_{i=1}^{m} x_{ij}}',
     type: 'matrix',
     data: normMatrix
   });
@@ -43,7 +43,7 @@ export function calculateEntropyWeights(criteria: Criterion[], alternatives: Alt
   steps.push({
     title: 'Entropy: Entropy Values (E_j)',
     description: 'Calculate entropy for each criterion.',
-    formula: 'E_j = -k * Σ(p_ij * ln(p_ij)), where k = 1/ln(n)',
+    formula: 'E_j = -k \\sum_{i=1}^{m} (p_{ij} \\ln p_{ij}), \\quad \\text{where } k = \\frac{1}{\\ln n}',
     type: 'list',
     data: { 'Entropy Values': entropies }
   });
@@ -64,7 +64,7 @@ export function calculateEntropyWeights(criteria: Criterion[], alternatives: Alt
   steps.push({
     title: 'Entropy: Final Weights',
     description: 'Calculate degree of diversification and final weights.',
-    formula: 'd_j = 1 - E_j, w_j = d_j / Σd_j',
+    formula: 'd_j = 1 - E_j, \\quad w_j = \\frac{d_j}{\\sum d_j}',
     type: 'list',
     data: { 'Diversification (d_j)': d, 'Final Weights (w_j)': weights }
   });
@@ -103,7 +103,7 @@ export function calculateAHPWeights(criteria: Criterion[], pairwiseMatrix: numbe
   steps.push({
     title: 'AHP: Normalized Pairwise Matrix',
     description: 'Normalize the pairwise comparison matrix by column sums.',
-    formula: 'w_i = (1/n) * Σ(a_ij / Σa_kj)',
+    formula: 'w_i = \\frac{1}{n} \\sum_{j=1}^{n} \\frac{a_{ij}}{\\sum_{k=1}^{n} a_{kj}}',
     type: 'matrix',
     data: Object.fromEntries(criteria.map((c, i) => [c.name, Object.fromEntries(criteria.map((c2, j) => [c2.name, normMatrix[i][j]]))]))
   });
@@ -117,7 +117,7 @@ export function calculateAHPWeights(criteria: Criterion[], pairwiseMatrix: numbe
   steps.push({
     title: 'AHP: Consistency Check',
     description: 'Check if the pairwise comparisons are consistent.',
-    formula: 'CI = (λmax - n)/(n-1), CR = CI/RI',
+    formula: 'CI = \\frac{\\lambda_{\\max} - n}{n-1}, \\quad CR = \\frac{CI}{RI}',
     type: 'list',
     data: { 'λmax': lambdaMax, 'CI': ci, 'RI': ri, 'CR': cr, 'Status': cr < 0.1 ? 'Consistent' : 'Inconsistent' }
   });
@@ -125,49 +125,192 @@ export function calculateAHPWeights(criteria: Criterion[], pairwiseMatrix: numbe
   return { weights, steps };
 }
 
-/**
- * Best-Worst Method (BWM) Weighting (Simplified Heuristic)
- * Uses Best-to-Others and Others-to-Worst vectors.
- */
-export function calculateBWMWeights(
-  criteria: Criterion[], 
-  bestId: string, 
-  worstId: string, 
-  bestToOthers: Record<string, number>, 
-  othersToWorst: Record<string, number>
-): { weights: Record<string, number>, steps: CalculationStep[] } {
+export function calculateBWMWeights(criteria: Criterion[], bestId: string, worstId: string, bestToOthers: Record<string, number>, othersToWorst: Record<string, number>): { weights: Record<string, number>, steps: CalculationStep[] } {
   const steps: CalculationStep[] = [];
+  const weights: Record<string, number> = {};
   
-  const w1: Record<string, number> = {};
-  const w2: Record<string, number> = {};
-  let sum1 = 0;
-  let sum2 = 0;
+  // Simplified heuristic for BWM weights
+  let sum = 0;
+  const tempWeights: Record<string, number> = {};
   
   criteria.forEach(c => {
-    const a_Bj = bestToOthers[c.id] || 1;
-    const a_jW = othersToWorst[c.id] || 1;
-    
-    w1[c.id] = 1 / a_Bj;
-    sum1 += w1[c.id];
-    
-    w2[c.id] = a_jW;
-    sum2 += w2[c.id];
+    if (c.id === bestId) {
+      tempWeights[c.id] = 1;
+    } else if (c.id === worstId) {
+      tempWeights[c.id] = 1 / (bestToOthers[worstId] || 9);
+    } else {
+      const w1 = 1 / (bestToOthers[c.id] || 1);
+      const w2 = (tempWeights[worstId] || 0.1) * (othersToWorst[c.id] || 1);
+      tempWeights[c.id] = (w1 + w2) / 2;
+    }
+    sum += tempWeights[c.id];
   });
   
-  const weights: Record<string, number> = {};
   criteria.forEach(c => {
-    w1[c.id] /= sum1;
-    w2[c.id] /= sum2;
-    weights[c.id] = (w1[c.id] + w2[c.id]) / 2;
+    weights[c.id] = tempWeights[c.id] / sum;
   });
   
   steps.push({
-    title: 'BWM: Weight Approximation',
-    description: 'Calculate weights using heuristic approximation from Best and Worst vectors.',
-    formula: 'w_j = ( (1/a_Bj)/Σ(1/a_Bk) + a_jW/Σ(a_kW) ) / 2',
+    title: 'BWM: Weight Calculation',
+    description: 'Calculate weights based on Best-to-Others and Others-to-Worst vectors.',
     type: 'list',
     data: { 'Final Weights': weights }
   });
   
   return { weights, steps };
 }
+
+export function calculateStdDevWeights(criteria: Criterion[], alternatives: Alternative[]): { weights: Record<string, number>, steps: CalculationStep[] } {
+  const steps: CalculationStep[] = [];
+  const weights: Record<string, number> = {};
+  
+  let sumStdDev = 0;
+  const stdDevs: Record<string, number> = {};
+  
+  criteria.forEach(c => {
+    const vals = alternatives.map(a => a.values[c.id] || 0);
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
+    const stdDev = Math.sqrt(variance);
+    stdDevs[c.id] = stdDev;
+    sumStdDev += stdDev;
+  });
+  
+  criteria.forEach(c => {
+    weights[c.id] = sumStdDev > 0 ? stdDevs[c.id] / sumStdDev : 1 / criteria.length;
+  });
+  
+  steps.push({
+    title: 'Standard Deviation Weights',
+    description: 'Calculate weights proportional to the standard deviation of each criterion.',
+    formula: 'w_j = \\frac{\\sigma_j}{\\sum \\sigma_j}',
+    type: 'list',
+    data: { 'Standard Deviations': stdDevs, 'Final Weights': weights }
+  });
+  
+  return { weights, steps };
+}
+
+export function calculateCRITICWeights(criteria: Criterion[], alternatives: Alternative[]): { weights: Record<string, number>, steps: CalculationStep[] } {
+  const steps: CalculationStep[] = [];
+  const weights: Record<string, number> = {};
+  
+  // 1. Normalize matrix
+  const normMatrix: Record<string, Record<string, number>> = {};
+  criteria.forEach(c => {
+    const vals = alternatives.map(a => a.values[c.id] || 0);
+    const max = Math.max(...vals);
+    const min = Math.min(...vals);
+    alternatives.forEach(a => {
+      if (!normMatrix[a.id]) normMatrix[a.id] = {};
+      const val = a.values[c.id] || 0;
+      if (max === min) {
+        normMatrix[a.id][c.id] = 1;
+      } else {
+        normMatrix[a.id][c.id] = c.type === 'benefit' ? (val - min) / (max - min) : (max - val) / (max - min);
+      }
+    });
+  });
+  
+  // 2. Std Dev
+  const stdDevs: Record<string, number> = {};
+  criteria.forEach(c => {
+    const vals = alternatives.map(a => normMatrix[a.id][c.id]);
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
+    stdDevs[c.id] = Math.sqrt(variance);
+  });
+  
+  // 3. Correlation matrix
+  const C: Record<string, number> = {};
+  let sumC = 0;
+  
+  criteria.forEach((c1, i) => {
+    let sum1MinusR = 0;
+    criteria.forEach((c2, j) => {
+      if (i !== j) {
+        const vals1 = alternatives.map(a => normMatrix[a.id][c1.id]);
+        const vals2 = alternatives.map(a => normMatrix[a.id][c2.id]);
+        const mean1 = vals1.reduce((a, b) => a + b, 0) / vals1.length;
+        const mean2 = vals2.reduce((a, b) => a + b, 0) / vals2.length;
+        
+        let num = 0;
+        let den1 = 0;
+        let den2 = 0;
+        for (let k = 0; k < vals1.length; k++) {
+          num += (vals1[k] - mean1) * (vals2[k] - mean2);
+          den1 += Math.pow(vals1[k] - mean1, 2);
+          den2 += Math.pow(vals2[k] - mean2, 2);
+        }
+        const r = (den1 === 0 || den2 === 0) ? 0 : num / Math.sqrt(den1 * den2);
+        sum1MinusR += (1 - r);
+      }
+    });
+    C[c1.id] = stdDevs[c1.id] * sum1MinusR;
+    sumC += C[c1.id];
+  });
+  
+  criteria.forEach(c => {
+    weights[c.id] = sumC > 0 ? C[c.id] / sumC : 1 / criteria.length;
+  });
+  
+  steps.push({
+    title: 'CRITIC Weights',
+    description: 'Calculate weights using standard deviation and correlation between criteria.',
+    formula: 'C_j = \\sigma_j \\sum_{k=1}^{n} (1 - r_{jk}), \\quad w_j = \\frac{C_j}{\\sum C_j}',
+    type: 'list',
+    data: { 'Information Amount (C_j)': C, 'Final Weights': weights }
+  });
+  
+  return { weights, steps };
+}
+
+export function calculateAHPEntropyWeights(criteria: Criterion[], alternatives: Alternative[], pairwiseMatrix: number[][]): { weights: Record<string, number>, steps: CalculationStep[] } {
+  const steps: CalculationStep[] = [];
+  
+  const ahpRes = calculateAHPWeights(criteria, pairwiseMatrix);
+  const entropyRes = calculateEntropyWeights(criteria, alternatives);
+  
+  steps.push(...ahpRes.steps);
+  steps.push(...entropyRes.steps);
+  
+  const weights: Record<string, number> = {};
+  let sum = 0;
+  
+  criteria.forEach(c => {
+    weights[c.id] = ahpRes.weights[c.id] * entropyRes.weights[c.id];
+    sum += weights[c.id];
+  });
+  
+  criteria.forEach(c => {
+    weights[c.id] /= sum;
+  });
+  
+  steps.push({
+    title: 'AHP-Entropy Hybrid Weights',
+    description: 'Combine AHP (subjective) and Entropy (objective) weights by multiplication and normalization.',
+    formula: 'w_j = \\frac{w^{AHP}_j w^{Entropy}_j}{\\sum_{k=1}^{n} w^{AHP}_k w^{Entropy}_k}',
+    type: 'list',
+    data: { 'Final Weights': weights }
+  });
+  
+  return { weights, steps };
+}
+
+export function calculatePlaceholderWeights(criteria: Criterion[], methodName: string): { weights: Record<string, number>, steps: CalculationStep[] } {
+  const weights: Record<string, number> = {};
+  criteria.forEach(c => {
+    weights[c.id] = 1 / criteria.length;
+  });
+  
+  return { 
+    weights, 
+    steps: [{
+      title: `${methodName} Weights`,
+      description: `This is a placeholder for ${methodName}. Equal weights are assigned.`,
+      type: 'list',
+      data: { 'Final Weights': weights }
+    }] 
+  };
+}
+
